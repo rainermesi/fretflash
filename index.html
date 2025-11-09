@@ -158,7 +158,7 @@ function splitIntoCards(raw){
     if(lines[0] && lines[0].trim().startsWith("#")){ title = lines.shift().replace(/^#\s*/, "").trim(); }
     const tab = lines.join("\n").trim();
     if(!tab) return;
-    cards.push({ id: crypto.randomUUID(), title: title || \`Phrase \${i+1}\`, tab, box: 1, nextDue: now(), createdAt: now(), lastResult: null });
+    cards.push({ id: crypto.randomUUID(), title: title || \`Phrase \${i+1}\\`, tab, box: 1, nextDue: now(), createdAt: now(), lastResult: null });
   });
   return cards;
 }
