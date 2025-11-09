@@ -256,7 +256,7 @@ function nextCard(){
   if(session.currentIndex >= session.queue.length){
     $("#reviewArea").classList.add("hidden");
     $("#emptyState").classList.remove("hidden");
-    $("#emptyState").innerHTML = \`<span class="ok">Session complete.</span> You can hit <b>Study due cards</b> again later.\`;
+    $("#emptyState").innerHTML = \`<span class="ok">Session complete.</span> You can hit <b>Study due cards</b> again later.\\`;
     refreshStats();
   } else {
     showCurrentCard();
@@ -271,7 +271,7 @@ $("#btnCreate").addEventListener("click", ()=>{
   if(cards.length === 0){ alert("No valid cards found. Check separators (---)."); return; }
   state.cards = cards;
   save();
-  alert(\`Created deck with \${cards.length} card(s).\`);
+  alert(\`Created deck with \${cards.length} card(s).\\`);
 });
 
 $("#btnAppend").addEventListener("click", ()=>{
@@ -281,7 +281,7 @@ $("#btnAppend").addEventListener("click", ()=>{
   if(cards.length === 0){ alert("No valid cards found."); return; }
   state.cards.push(...cards);
   save();
-  alert(\`Appended \${cards.length} card(s).\`);
+  alert(\`Appended \${cards.length} card(s).\\`);
 });
 
 $("#btnExport").addEventListener("click", ()=>{
@@ -302,7 +302,7 @@ $("#importFile").addEventListener("change", (e)=>{
       if(!imported.cards) throw new Error("Invalid deck JSON");
       state = imported;
       save();
-      alert(\`Imported deck with \${state.cards.length} card(s).\`);
+      alert(\`Imported deck with \${state.cards.length} card(s).\\`);
     } catch(err){
       alert("Import failed: " + err.message);
     }
