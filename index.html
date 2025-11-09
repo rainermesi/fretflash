@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TabCards – Guitar Tab Flashcards (MVP)</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<style>
+  :root { --bg:#0f1220; --panel:#171a2b; --ink:#e9ecf1; --muted:#96a0b5; --accent:#80d4ff; --accent2:#8ef0c7; --warn:#ffb86b; --danger:#ff6b6b; }
+  *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#0f1220,#0b0e1a);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;line-height:1.45}
+  header{padding:16px 20px;border-bottom:1px solid #242846;background:#0f1322;position:sticky;top:0;z-index:10}
+  header h1{margin:0;font-size:18px;letter-spacing:.3px} header span{color:var(--muted);font-size:12px}
+  main{max-width:960px;margin:24px auto;padding:0 16px 32px}
+  .grid{display:grid;gap:16px}
+  @media(min-width:880px){.grid{grid-template-columns:1.2fr .8fr}}
+  .card{background:var(--panel);border:1px solid #242846;border-radius:12px;padding:14px 14px 10px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card h2{margin:.1rem 0 .6rem;font-size:16px;letter-spacing:.2px}
+  textarea,input,select,button{width:100%;border-radius:10px;border:1px solid #29304f;background:#0f1327;color:var(--ink);padding:10px 12px;font-size:14px}
+  textarea{min-height:180px;white-space:pre;resize:vertical}
+  .row{display:flex;gap:10px;align-items:center}
+  .row > *{flex:1}
+  .small{font-size:12px;color:var(--muted)}
+  .kbd{background:#0b0f1d;border:1px solid #2b3153;border-radius:6px;padding:2px 6px;margin:0 2px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3051;color:var(--muted);font-size:12px;margin-right:6px}
+  pre.tab{background:#0b0f1d;border:1px dashed #2a3051;border-radius:10px;padding:12px;overflow:auto;max-height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.25}
+  .muted{color:var(--muted)}
+  .btn{cursor:pointer}
+  .btn.primary{background:linear-gradient(180deg,#1d8fff,#1570f6);border-color:#0f4dcc}
+  .btn.alt{background:#0f1327;border-color:#3a426b}
+  .btn.good{background:linear-gradient(180deg,#1aa96b,#12935d);border-color:#0f6f45}
+  .btn.bad{background:linear-gradient(180deg,#e17a57,#d95c3b);border-color:#b34228}
+  .stack{display:flex;gap:10px;flex-wrap:wrap}
+  .spaced{margin-top:8px}
+  .center{display:flex;justify-content:center;align-items:center}
+  .hidden{display:none}
+  .due{color:var(--accent)}
+  .ok{color:var(--accent2)}
+  .warn{color:var(--warn)}
+  .danger{color:var(--danger)}
+  footer{opacity:.8;font-size:12px;margin-top:18px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<header>
+  <h1>TabCards <span>— flashcards for memorising guitar tabs</span></h1>
+</header>
+
+<main class="grid">
+  <!-- Left: Deck authoring & controls -->
+  <section class="card">
+    <h2>1) Build / import a deck</h2>
+    <p class="small">Paste tabs below. Separate cards with a line containing three dashes <span class="mono">---</span>. Optional title on a line starting with <span class="mono">#</span>.</p>
+    <textarea id="deckInput" placeholder="# Smoke on the Water (main riff)
+e|----------------|----------------|
+B|----------------|----------------|
+G|*--------------*|*--------------*|
+D|*--3---5---3---*|*--6---5---3---*|
+A|--3---5---3---- |--6---5---3-----|
+E|--1---3---1---- |--4---3---1-----|
+---
+# Little Lick in A minor
+e|----------------|
+B|--------5-5-----|
+G|------5-----5---|
+D|----7---------7-|
+A|--7-------------|
+E|----------------|"></textarea>
+    <div class="row spaced">
+      <button class="btn primary" id="btnCreate">Create / Replace Deck</button>
+      <button class="btn alt" id="btnAppend">Append to Deck</button>
+    </div>
+    <div class="row spaced">
+      <button class="btn alt" id="btnExport">Export Deck JSON</button>
+      <input id="importFile" type="file" accept="application/json" />
+    </div>
+    <p class="small">
+      Tip: Numbers are hidden during review to force recall. Everything else (strings, bars, slides, h/p) stays visible.
+    </p>
+  </section>
+
+  <!-- Right: Session info -->
+  <section class="card">
+    <h2>2) Study</h2>
+    <div class="row">
+      <button class="btn primary" id="btnStart">Study due cards</button>
+      <select id="maskMode">
+        <option value="digits" selected>Hide digits only (recommended)</option>
+        <option value="digits-and-x">Hide digits + muted X</option>
+        <option value="all-but-strings">Hide everything except string lines</option>
+      </select>
+    </div>
+    <div class="row spaced">
+      <label class="small"><input id="shuffleDue" type="checkbox" checked /> Shuffle due cards</label>
+      <label class="small"><input id="sessionAll" type="checkbox" /> Include not-yet-due (cram)</label>
+    </div>
+    <hr style="border-color:#242846;margin:10px 0">
+    <div class="row">
+      <div class="pill">Cards: <span id="statsTotal">0</span></div>
+      <div class="pill">Due now: <span id="statsDue">0</span></div>
+      <div class="pill">Today reviewed: <span id="statsToday">0</span></div>
+    </div>
+    <p class="small muted spaced">Shortcuts: <span class="kbd">Space</span> Reveal / Next • <span class="kbd">Y</span> I knew it • <span class="kbd">N</span> Show again</p>
+  </section>
+
+  <!-- Review panel -->
+  <section class="card" style="grid-column: 1 / -1;">
+    <h2>Review</h2>
+    <div id="emptyState" class="muted small">No card loaded yet. Press “Study due cards”.</div>
+
+    <div id="reviewArea" class="hidden">
+      <div class="row">
+        <div class="pill">Card <span id="idxNow">0</span>/<span id="idxTotal">0</span></div>
+        <div class="pill">Box <span id="boxNow">1</span></div>
+        <div class="pill">Next due <span id="dueNow">—</span></div>
+      </div>
+
+      <h3 id="cardTitle" class="spaced" style="margin:.6rem 0 .2rem;"></h3>
+
+      <pre id="masked" class="tab"></pre>
+      <pre id="revealed" class="tab hidden"></pre>
+
+      <div class="stack spaced">
+        <button class="btn alt" id="btnReveal">Reveal</button>
+        <button class="btn good hidden" id="btnKnew">I got it (↑ box)</button>
+        <button class="btn bad hidden" id="btnAgain">Show again (↓ box)</button>
+        <button class="btn alt hidden" id="btnNext">Next</button>
+      </div>
+    </div>
+
+    <footer>
+      Leitner scheduling: Box 1 → 12h, 2 → 1d, 3 → 3d, 4 → 7d, 5 → 14d. Correct = move up one box (max 5). Incorrect = down to Box 1.
+    </footer>
+  </section>
+</main>
+
+<script>
+const storeKey = "tabcards:v1";
+const day = 24*60*60*1000;
+const intervals = {1: 12*60*60*1000, 2: 1*day, 3: 3*day, 4: 7*day, 5: 14*day};
+
+let state = load() || { cards: [], stats: { lastReviewedOn: null, todayCount: 0 } };
+let session = { queue: [], currentIndex: 0, showing: "masked" };
+
+const $ = sel => document.querySelector(sel);
+
+function load(){ try { return JSON.parse(localStorage.getItem(storeKey)); } catch(e){ return null; } }
+function save(){ localStorage.setItem(storeKey, JSON.stringify(state)); refreshStats(); }
+function now(){ return Date.now(); }
+function fmtDate(ts){ if(!ts) return "—"; const d = new Date(ts); return d.toLocaleString([], {year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); }
+
+function splitIntoCards(raw){
+  const blocks = raw.split(/\n\s*---\s*\n/g).map(b => b.trim()).filter(Boolean);
+  const cards = [];
+  blocks.forEach((b, i) => {
+    const lines = b.split(/\r?\n/);
+    let title = "";
+    if(lines[0] && lines[0].trim().startsWith("#")){ title = lines.shift().replace(/^#\s*/, "").trim(); }
+    const tab = lines.join("\n").trim();
+    if(!tab) return;
+    cards.push({ id: crypto.randomUUID(), title: title || \`Phrase \${i+1}\`, tab, box: 1, nextDue: now(), createdAt: now(), lastResult: null });
+  });
+  return cards;
+}
+
+function maskTab(tab, mode){
+  const replDigit = (m) => "•".repeat(m.length);
+  if(mode === "digits"){ return tab.replace(/\d+/g, replDigit); }
+  else if(mode === "digits-and-x"){ return tab.replace(/[xX]|\d+/g, (m)=> m.match(/\d/)? replDigit(m) : "•"); }
+  else {
+    const lines = tab.split("\n").map(line=>{
+      if (/^[eBGDAE]\|/.test(line)) {
+        const prefix = line.slice(0,2);
+        const rest = line.slice(2).replace(/[0-9a-df-zA-DF-Z#\/\\hpbr~^()]+/g, (m)=> m.replace(/./g,"•"));
+        return prefix + rest;
+      } else {
+        return line.replace(/[0-9a-zA-Z#\/\\hpbr~^()]+/g, (m)=> m.replace(/./g,"•"));
+      }
+    });
+    return lines.join("\n");
+  }
+}
+
+function refreshStats(){
+  const total = state.cards.length;
+  const due = state.cards.filter(c => c.nextDue <= now()).length;
+  $("#statsTotal").textContent = total;
+  $("#statsDue").textContent = due;
+
+  const todayStr = new Date().toDateString();
+  const lastStr = state.stats.lastReviewedOn ? new Date(state.stats.lastReviewedOn).toDateString() : null;
+  if (todayStr !== lastStr) state.stats.todayCount = 0;
+  $("#statsToday").textContent = state.stats.todayCount || 0;
+}
+refreshStats();
+
+function startSession(){
+  const includeAll = $("#sessionAll").checked;
+  const dueCards = state.cards.filter(c => includeAll ? true : (c.nextDue <= now()));
+  if($("#shuffleDue").checked) shuffle(dueCards);
+  session.queue = dueCards;
+  session.currentIndex = 0;
+  if(session.queue.length === 0){
+    $("#emptyState").textContent = "Nothing due. You can enable ‘Include not-yet-due (cram)’ or add more cards.";
+    $("#reviewArea").classList.add("hidden");
+    $("#emptyState").classList.remove("hidden");
+    return;
+  }
+  $("#idxTotal").textContent = session.queue.length;
+  showCurrentCard();
+}
+
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+
+function showCurrentCard(){
+  const card = session.queue[session.currentIndex];
+  if(!card) return;
+  $("#emptyState").classList.add("hidden");
+  $("#reviewArea").classList.remove("hidden");
+  $("#idxNow").textContent = session.currentIndex + 1;
+  $("#boxNow").textContent = card.box;
+  $("#dueNow").textContent = fmtDate(card.nextDue);
+  $("#cardTitle").textContent = card.title;
+
+  const mode = $("#maskMode").value;
+  $("#masked").textContent = maskTab(card.tab, mode);
+  $("#revealed").textContent = card.tab;
+
+  $("#btnReveal").classList.remove("hidden");
+  $("#btnKnew").classList.add("hidden");
+  $("#btnAgain").classList.add("hidden");
+  $("#btnNext").classList.add("hidden");
+
+  $("#revealed").classList.add("hidden");
+  $("#masked").classList.remove("hidden");
+  session.showing = "masked";
+}
+
+function mark(card, knew){
+  if(knew){ card.box = Math.min(5, card.box + 1); card.lastResult = "good"; }
+  else { card.box = 1; card.lastResult = "again"; }
+  const interval = intervals[card.box] || day;
+  card.nextDue = now() + interval;
+
+  const todayStr = new Date().toDateString();
+  const lastStr = state.stats.lastReviewedOn ? new Date(state.stats.lastReviewedOn).toDateString() : null;
+  if (todayStr !== lastStr) state.stats.todayCount = 0;
+  state.stats.todayCount += 1;
+  state.stats.lastReviewedOn = now();
+
+  save();
+}
+
+function nextCard(){
+  session.currentIndex += 1;
+  if(session.currentIndex >= session.queue.length){
+    $("#reviewArea").classList.add("hidden");
+    $("#emptyState").classList.remove("hidden");
+    $("#emptyState").innerHTML = \`<span class="ok">Session complete.</span> You can hit <b>Study due cards</b> again later.\`;
+    refreshStats();
+  } else {
+    showCurrentCard();
+  }
+}
+
+/* ====== UI bindings ====== */
+$("#btnCreate").addEventListener("click", ()=>{
+  const raw = $("#deckInput").value.trim();
+  if(!raw){ alert("Paste some tabs first!"); return; }
+  const cards = splitIntoCards(raw);
+  if(cards.length === 0){ alert("No valid cards found. Check separators (---)."); return; }
+  state.cards = cards;
+  save();
+  alert(\`Created deck with \${cards.length} card(s).\`);
+});
+
+$("#btnAppend").addEventListener("click", ()=>{
+  const raw = $("#deckInput").value.trim();
+  if(!raw){ alert("Paste some tabs first!"); return; }
+  const cards = splitIntoCards(raw);
+  if(cards.length === 0){ alert("No valid cards found."); return; }
+  state.cards.push(...cards);
+  save();
+  alert(\`Appended \${cards.length} card(s).\`);
+});
+
+$("#btnExport").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tabcards-deck.json"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+$("#importFile").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if(!imported.cards) throw new Error("Invalid deck JSON");
+      state = imported;
+      save();
+      alert(\`Imported deck with \${state.cards.length} card(s).\`);
+    } catch(err){
+      alert("Import failed: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+$("#btnStart").addEventListener("click", startSession);
+
+$("#btnReveal").addEventListener("click", ()=>{
+  $("#masked").classList.add("hidden");
+  $("#revealed").classList.remove("hidden");
+  $("#btnReveal").classList.add("hidden");
+  $("#btnKnew").classList.remove("hidden");
+  $("#btnAgain").classList.remove("hidden");
+  $("#btnNext").classList.remove("hidden");
+  session.showing = "revealed";
+});
+
+$("#btnKnew").addEventListener("click", ()=>{
+  const card = session.queue[session.currentIndex];
+  mark(card, true);
+  nextCard();
+});
+$("#btnAgain").addEventListener("click", ()=>{
+  const card = session.queue[session.currentIndex];
+  mark(card, false);
+  if(session.currentIndex < session.queue.length - 1){ session.queue.push(card); }
+  nextCard();
+});
+$("#btnNext").addEventListener("click", nextCard);
+
+// Keyboard shortcuts
+document.addEventListener("keydown", (e)=>{
+  if(e.key === " "){
+    e.preventDefault();
+    if(document.getElementById("btnReveal").classList.contains("hidden")) nextCard(); else document.getElementById("btnReveal").click();
+  } else if(e.key.toLowerCase() === "y" && !document.getElementById("btnKnew").classList.contains("hidden")){
+    document.getElementById("btnKnew").click();
+  } else if(e.key.toLowerCase() === "n" && !document.getElementById("btnAgain").classList.contains("hidden")){
+    document.getElementById("btnAgain").click();
+  }
+});
+
+refreshStats();
+</script>
+</body>
+</html>
